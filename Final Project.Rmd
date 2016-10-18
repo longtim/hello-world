@@ -1,0 +1,142 @@
+---
+title: "Interim Project"
+author: "Tim Long, Todd, Charles"
+date: "October 17, 2016"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+#Import test and train data sets.
+test <- read.csv("C:/Predictive Analytics Assignments/FinalProject/test.csv")
+train <- read.csv("C:/Predictive Analytics Assignments/FinalProject/train.csv")
+
+library("knitr", lib.loc="~/R/win-library/3.3")
+library("arm", lib.loc="~/R/win-library/3.3")
+library("caret", lib.loc="~/R/win-library/3.3")
+
+areaModel <- standardize(lm(SalePrice~LotArea, data=train))
+display(areaModel)
+plot(train$LotArea, train$SalePrice, main=paste ("Plot of", names(train$LotArea)))
+plot(areaModel)
+hist(train$LotArea)
+```
+# Introduction
+
+Finding the value of a house you are buying or selling can be hard to know. but with 1460 observation of homes and with 79 unique descriptions variables, our team will decide what 5 variables will have the biggest effect on prediction 1459 houses in Ames, Iowa. From this data we will show why we choose these variables and how they performed in out train and test set. 
+
+# Data and Cleaning
+
+In looking at the data and data descriptions we found that minimal data cleaning was needed to produce a good prediction model. When looking a plot of LotAear with Sales as the outcome variable, we concluded that Lot size had 5 outliers that skewed the data and decrease the predictive power that LotArea had to offer. After taking out the skewed data point and implementing that into our new data frame we found that the LotArea was a predictive factor in our model.
+```{r, include=FALSE}
+nLotArea <- train[which(train$LotArea <= 70000),]
+set.seed(512)
+Indexes <- sample(nrow(nLotArea), 0.7 * nrow(nLotArea), replace = F)
+tr <- nLotArea[Indexes, ]
+tt <- nLotArea[-Indexes, ]
+```
+# Model and Model Development
+
+Given the context of the problem and the data available it was determined that the model developed to describe the housing sale prices in Iowa should be simple, use relevant variables, and accurate.  This model will be used to describe what variables affect home sale prices in Iowa to the layman.  A limit was imposed upon the model that it shouldn’t include more than five variables.  The five variable limit will reinforce the simplicity of the model as well as meet the requirements set in the project description.  
+
+Relevant variables were determined to be those that would be easily understood and commonly used by an individual with basic understanding of real estate and home ownership.  The variables selected to create the model should require little to no explanation.  This will support the simplicity and usability of the model.
+
+Finally the model should be accurate and resistant to errors.  A linear model was accepted to fit these requirements.  Linear models are simple and therefore easy to explain, visualize, and interpret.  Linear models are common, resilient, need little background knowledge to apply, and require less computational power compared to other modeling methods.  The model name and the RMSE are reported below for each model.
+
+An initial linear model using “Neighborhood” as the only variable was created.  This was used as a baseline to compare further models.  The categorical variable Neighborhood is easy to understand and it contains a geographical component that groups homes according to location.  Home prices aren’t independent of each other and the Neighborhood variable is a simple way to include this behavior and provide a degree of normalization.  
+```{r, include=FALSE}
+#Model with only Neighboorhood (subset according to lotarea <= 70000)
+
+display(hoodPrice <- lm(SalePrice~Neighborhood, data=nLotArea))
+
+nLotArea$SalePred <- predict(hoodPrice, nLotArea)
+```
+Neighborhood only model:
+```{r}
+RMSE(nLotArea$SalePred, nLotArea$SalePrice)
+```
+Above ground living area (“GrLivArea”) was then added as a variable.  Above ground living area is often used in home sales adds to describe a home and has an impact on the value of a home.  
+```{r, include=FALSE}
+#Model with only Neighborhood and GrLivArea (subset according to lotarea <= 70000)
+
+display(hoodGr <- lm(SalePrice~Neighborhood+GrLivArea, data=nLotArea))
+
+nLotArea$SaleGrPred <- predict(hoodGr, nLotArea)
+```
+Neighborhood and above ground living area model:
+```{r}
+RMSE(nLotArea$SaleGrPred, nLotArea$SalePrice)
+```
+Lot area (“LotArea”) was added to the linear model because it was a variable typically used when describing a property.  It is straightforward and easy to explain.
+```{r, include=FALSE}
+#Model with Neighborhood, GrLivArea, and LotArea (subset according to lotarea <= 70000)
+
+display(hoodGrLa <- lm(SalePrice~Neighborhood+GrLivArea+LotArea, data=nLotArea))
+
+nLotArea$SaleGrLaPred <- predict(hoodGrLa, nLotArea)
+```
+Neighborhood, above ground living area, and lot area model:
+```{r}
+RMSE(nLotArea$SaleGrLaPred, nLotArea$SalePrice)
+```
+The age of the home was calculated (2011 - YearBuilt) and added to the model because it significantly increased the fit of the linear model to the data. 
+```{r, include=FALSE}
+#Model with Neighborhood, GrLivArea, age, and LotArea (subset according to lotarea <= 70000)
+
+nLotArea$age <- (2011-nLotArea$YearBuilt)
+
+display(hoodGrLaYr <- lm(SalePrice~Neighborhood+GrLivArea+LotArea+age, data=nLotArea))
+
+nLotArea$SaleGrLaYrPred <- predict(hoodGrLaYr, nLotArea)
+```
+Neighborhood, above ground living area, age, and lot area model:
+```{r}
+RMSE(nLotArea$SaleGrLaYrPred, nLotArea$SalePrice)
+```
+Finally overall quality of the the home (“OverallQual”) was added to the linear model.  The condition of the home carries a great deal of influence when deciding to purchase a home and how much to purchase it for.  It was added since it improved the fit of the model and wouldn’t require additional explanation to the typical homebuyer.  
+```{r, include=FALSE}
+#Model with Neighborhood, GrLivArea, YearBuilt, OverallQual, and LotArea (subset according to lotarea <= 70000)
+
+display(hoodGrLaYrQ <- lm(SalePrice~Neighborhood+GrLivArea+LotArea+age+OverallQual, data=nLotArea))
+
+nLotArea$SaleGrLaYrQPred <- predict(hoodGrLaYrQ, nLotArea)
+```
+Neighborhood, above ground living area, age, overall quality, and lot area model:
+```{r}
+RMSE(nLotArea$SaleGrLaYrQPred, nLotArea$SalePrice)
+```
+# Model Performance
+```{r, include=FALSE}
+#Run predictions on the test set.  
+
+#Report RMSE (maybe need to write our own function for RMSE since the standard R function returns 'NA'.
+
+#Report standard error of residuals
+
+#Create table presenting results of all models used in development for comparison. (Create dataframe)
+Model <- c("hoodPrice", "hoodGr ", "hoodGrLa", "hoodGrLaYr", "hoodGrLaYrQ" )
+RMSE <- c(RMSE(nLotArea$SalePred, nLotArea$SalePrice),RMSE(nLotArea$SaleGrPred, nLotArea$SalePrice) , RMSE(nLotArea$SaleGrLaPred, nLotArea$SalePrice),RMSE(nLotArea$SaleGrLaYrPred, nLotArea$SalePrice), RMSE(nLotArea$SaleGrLaYrQPred, nLotArea$SalePrice)) 
+R_sq <- c(summary(hoodPrice)$r.squared, summary(hoodGr)$r.squared, summary(hoodGrLa)$r.squared, summary(hoodGrLaYr)$r.squared, summary(hoodGrLaYrQ)$r.squared) 
+Adj_R_sq <- c(summary(hoodPrice)$adj.r.squared, summary(hoodGr)$adj.r.squared, summary(hoodGrLa)$adj.r.squared, summary(hoodGrLaYr)$adj.r.squared, summary(hoodGrLaYrQ)$adj.r.squared) 
+```
+```{r, include=FALSE}
+test$age <- (2011 - test$YearBuilt)
+
+tt$age <- (2011 - tt$YearBuilt)
+
+tt$salesPred <- predict(hoodGrLaYrQ, newdata = tt)
+```
+# Results
+
+The table below contains the models that were used in the development process as well as indicators of their accuracy.  
+```{r, include=FALSE}
+df = data.frame(Model, RMSE, R_sq, Adj_R_sq)
+```
+```{r}
+kable(df, digits = 3, caption = "Model Results")
+```
+
+Result of application of model to test set created from train data.
+```{r}
+RMSE(tt$SalePrice, tt$salesPred)
+```
